@@ -1,0 +1,17 @@
+We will make a environmental monitoring and alarm system around the proton board, making a custom PCB to integrate all components. The system will monitor the temperature, humidity, and ambient light while displaying the current measurements and system status on an LCD display. Temperature and humidity will be measured using a digital sensor connected via I2C. Ambient light will be measured using an analog light sensor connected to one of the ADC inputs. The LCD display will be controlled by SPI and display relevant information based on the option selected by a keypad. The systems will also have RGB LEDs controlled by PIO. They will indicate that the system is operating normally during normal environmental conditions. If any of the temperature, humidity, or ambient light exceeds any of the upper of lower threshold set by the keypad during setup, the system will enter an alarm state. The LEDs will change color and start flashing and the LCD will display the corresponding warning. The use case for this is in agriculture applications where appropriate environmental conditions are needed.
+
+
+i2c - temperature display
+spi - control lcd display
+adc - measure ambient light
+pio - use led strip to act as a system status indictator
+
+
+STM32-Based IoT Framework for Real-Time Environmental Monitoring and Wireless Node Synchronization
+https://arxiv.org/html/2506.17295v2
+Our project is based around an RP2350, while this project uses STM32. This project also focuses on wireless communication between two STM32 based environmental monitoring nodes, while ours focuses on integrating various sensors onto a custom PCB to collect real-time data.
+
+
+BreatheSafe: Pocket-Sized Environmental Monitor
+https://www.hackster.io/ak131/breathesafe-pocket-sized-environmental-monitor-d9377a
+This project only uses I2C based peripherals, while we are using I2C, SPI, ADC, and PIO. This project's firmware is also written in python while we write in C. The system runs on a PocketBeagle, which runs linux, while we use a microcontroller that can't run an operating system.
