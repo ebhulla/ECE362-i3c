@@ -1,179 +1,212 @@
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
-#include "lcd.h"
-#include <stdio.h>
-#include <string.h>
-#include <math.h>   
+#include "queue.h"
 
-/****************************************** */
-#define PIN_SDI    x
-#define PIN_CS     x
-#define PIN_SCK    x
-#define PIN_DC     x
-#define PIN_nRESET x
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "ws2812.pio.h"
 
-// Uncomment the following #define when 
-// you are ready to run Step 3.
+//////////////////////////////////////////////////////////////////////////////
 
-// WARNING: The process will take a VERY 
-// long time as it compiles and uploads 
-// all the image frames into the uploaded 
-// binary!  Expect to wait 5 minutes.
-#define ANIMATION
+#define IS_RGBW false
+#define NUM_PIXELS 150
 
-/****************************************** */
-#ifdef ANIMATION
-#include "images.h"
+#define WS2812_PIN 28 // set to be the pin 
+
+// Check the pin is compatible with the platform
+#if WS2812_PIN >= NUM_BANK0_GPIOS
+#error Attempting to use a pin>=32 on a platform that does not support it
 #endif
-/****************************************** */
 
-void init_spi_lcd() {
-    gpio_set_function(PIN_CS, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_DC, GPIO_FUNC_SIO);
-    gpio_set_function(PIN_nRESET, GPIO_FUNC_SIO);
+// #define ALTERNATING
+// #define FADE
+#define RING_COUNTER
 
-    gpio_set_dir(PIN_CS, GPIO_OUT);
-    gpio_set_dir(PIN_DC, GPIO_OUT);
-    gpio_set_dir(PIN_nRESET, GPIO_OUT);
+//////////////////////////////////////////////////////////////////////////////
 
-    gpio_put(PIN_CS, 1); // CS high
-    gpio_put(PIN_DC, 0); // DC low
-    gpio_put(PIN_nRESET, 1); // nRESET high
+static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b, int brightness);
 
-    // initialize SPI1 with 48 MHz clock
-    gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
-    gpio_set_function(PIN_SDI, GPIO_FUNC_SPI);
-    spi_init(spi1, 100 * 1000 * 1000);
-    spi_set_format(spi1, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+//////////////////////////////////////////////////////////////////////////////
+
+// function to put the pixel data in 
+static inline void put_pixel(PIO pio, uint sm, uint32_t pixel_grb, int led_num) {
+    // need to shift by 8 because we have 24 bits of data but have to push in 32 bits
+    for (int i = 0; i <= led_num; i++)
+    {
+        pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
+    }
 }
 
-Picture* load_image(const char* image_data);
-void free_image(Picture* pic);
+static inline void pixel_alternating(PIO pio, uint sm, uint32_t pixel_grb1, uint32_t pixel_grb2, int led_num)
+{
+    for (int i = 0; i <= led_num ; i++){
+        if (i % 2 == 0)
+        {
+            pio_sm_put_blocking(pio, sm, pixel_grb1 << 8u);
+        }
+        else
+        {
+            // uint8_t r = (pixel_grb & 0xFF00) >> 8;
+            // uint8_t g = (pixel_grb & 0xFF0000) >> 16;
+            // uint8_t b = (pixel_grb & 0xFF); 
+            // g = g >> 4;
+            // b = b >> 2;
+            // uint32_t new_rgb = urgb_u32(r, g, b);
+            pio_sm_put_blocking(pio, sm, pixel_grb2 << 8u);
+        }
+        
+    }
+}
 
-int main() {
+static inline void reset_leds(PIO pio, uint sm, int led_num)
+{   
+    uint32_t pixel_grb = urgb_u32(100, 100, 100, 0);
+
+    for(int i = 0; i <= led_num; i++)
+    {
+        pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
+    }
+}
+static inline void ring_counter(PIO pio, uint sm, uint32_t pixel_grb, int led_num)
+{   
+    uint32_t off = urgb_u32(100, 100, 100, 0);
+    for (int i = 0; i <= led_num; i++)
+    {
+        if (i == 0)
+        {
+            pio_sm_put_blocking(pio, sm, pixel_grb << 8);
+        }
+        for (int j = 0; j < i; j++)
+        {
+            if (i == 0)
+            {
+                printf("%d\n", i);
+            }
+            pio_sm_put_blocking(pio, sm, off << 8);
+        }
+        pio_sm_put_blocking(pio, sm, pixel_grb << 8);
+        sleep_ms(100);
+    }
+}
+
+static inline void pixel_fade(PIO pio, uint sm, int r, int g, int b, int led_num)
+{
+    int brightness = 100;
+    uint32_t pixel_grb;
+    while (brightness >= 0)
+    {
+        if (brightness > 0)
+        {
+            for (int i = 0; i <= led_num; i++)
+            {   
+                pixel_grb = urgb_u32(r, g, b, brightness);
+                pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
+            }
+            brightness--;
+        }
+        else if (brightness == 0)
+        {
+            for (int i = 0; i <= led_num; i++)
+            {   
+                pixel_grb = urgb_u32(0, 0, 0, 0);
+                pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
+            }
+            printf("Lights out\n");
+            brightness--;
+            sleep_ms(100);
+        }
+        sleep_ms(10);
+    }
+}
+
+// create the 32 bits of data for the color
+// replace with the white if needed
+static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b, int brightness) {
+        if (brightness == 0)
+        {
+            r = 0;
+            g = 0;
+            b = 0;
+        }
+        else
+        {
+            int frac = 100 / brightness;
+            r = r / frac;
+            g = g / frac;
+            b = b / frac;
+        }
+    return
+            ((uint32_t) (r) << 8) |
+            ((uint32_t) (g) << 16) |
+            (uint32_t) (b);
+}
+
+
+int main()
+{
+    // Configures our microcontroller to 
+    // communicate over UART through the TX/RX pins
     stdio_init_all();
 
-    init_spi_lcd();
+    // starting my PIO test code
+    
+    printf("WS2812 Test, using pin %d\n", WS2812_PIN);
+    fflush(stdout);
+    // todo get free sm
+    PIO pio;
+    uint sm;
+    uint offset;
 
-    LCD_Setup();
-    LCD_Clear(0x0000); // Clear the screen to black
-
-    #ifndef ANIMATION
-    #define N_BODIES   3      // Number of bodies in the simulation
-    #define G          12.0f  // Gravitational constant
-    #define DT         0.01f // Simulation time step
-    #define SOFTENING  5.0f   // Prevents extreme forces at close range
-
-    // Colors as per the 16-bit RGB565 specification.
-    #define BLACK      0x0000
-    #define RED        0xF800
-    #define LIME       0x07E0   // brighter green
-    #define BLUE       0x001F
-
-    // Make things easier to keep track of for each "body".
-    typedef struct {
-        float x, y, vx, vy, mass;
-        uint16_t color;
-    } Body;
-
-    // Clear everything so we start from scratch
-    LCD_Clear(BLACK);
-
-    // Initialize all bodies in a compact list
-    Body bodies[N_BODIES] = {
-        { .x=120.0f, .y=100.0f, .vx= 1.2f, .vy= 0.5f, .mass=20.0f, .color=RED  },
-        { .x=180.0f, .y=250.0f, .vx=-0.8f, .vy=-1.0f, .mass=25.0f, .color=LIME },
-        { .x= 60.0f, .y=250.0f, .vx= 0.5f, .vy= 0.9f, .mass=30.0f, .color=BLUE }
-    };
-
-    // Infinite Animation Loop
-    while(1) {
-        // Calculate accelerations and update velocities
-        for (int i = 0; i < N_BODIES; i++) {
-            float total_accel_x = 0.0f;
-            float total_accel_y = 0.0f;
-
-            for (int j = 0; j < N_BODIES; j++) {
-                if (i == j) continue;
-
-                float dx = bodies[j].x - bodies[i].x;
-                float dy = bodies[j].y - bodies[i].y;
-                // d^2 = dx^2 + dy^2 (+ a fake softening factor to avoid collisions)
-                float dist_sq = dx * dx + dy * dy + SOFTENING;
-                // Newton's law of gravitation: F = G * m1 * m2 / d^2
-                float inv_dist_cubed = 1.0f / (dist_sq * sqrtf(dist_sq));
-                
-                // Acceleration = Force / mass, but we multiply by mass to get the force directly
-                // so we can use it to update velocity directly.
-                total_accel_x += dx * inv_dist_cubed * bodies[j].mass * G;
-                total_accel_y += dy * inv_dist_cubed * bodies[j].mass * G;
-            }
-            bodies[i].vx += total_accel_x * DT;
-            bodies[i].vy += total_accel_y * DT;
-        }
-        
-        // Update positions and draw each body
-        for (int i = 0; i < N_BODIES; i++) {
-            // new position = old position + velocity * time step
-            bodies[i].x += bodies[i].vx * DT;
-            bodies[i].y += bodies[i].vy * DT;
-
-            // Wrap around screen edges
-            if (bodies[i].x < 0)    bodies[i].x += 240;
-            if (bodies[i].x >= 240) bodies[i].x -= 240;
-            if (bodies[i].y < 0)    bodies[i].y += 320;
-            if (bodies[i].y >= 320) bodies[i].y -= 320;
-
-            LCD_DrawPoint((uint16_t)bodies[i].x, (uint16_t)bodies[i].y, bodies[i].color);
-        }
-
-        // Slow it WAY down so we can see the planets interact with each other!
-        sleep_ms(1);
+    // This will find a free pio and state machine for our program and load it for us
+    // We use pio_claim_free_sm_and_add_program_for_gpio_range (for_gpio_range variant)
+    // so we will get a PIO instance suitable for addressing gpios >= 32 if needed and supported by the hardware
+    bool success = pio_claim_free_sm_and_add_program_for_gpio_range(&ws2812_program, &pio, &sm, &offset, WS2812_PIN, 1, true);
+    fflush(stdout);
+    if (success)
+    {
+        printf("Successfully connected to state machine");
     }
-    #endif
-    
-    /*
-        Now, for some more fun!
-
-        Uncomment the ANIMATION #define at the top of main.c 
-        to run this section.
-        
-        We've converted a popular GIF into a series of images, 
-        and stored each of those frames in its own C array.  
-        Look at the lab for the script we wrote to do this.
-
-        This is an example of how you can draw a very large picture, 
-        but notice how slow the animation is, even at 100 MHz.  
-        The LCD_DrawPicture function is not really intended for such 
-        large images, but it will be very helpful for smaller ones, 
-        like scary monsters and nice sprites in a game.
-    */ 
-
-    #ifdef ANIMATION
-    Picture* frame_pic = NULL;
-    int frame_index = 0;
-    while (1) { // Loop forever
-        // Get the next frame from the array
-        frame_pic = load_image(mystery_frames[frame_index]);
-    
-        if (frame_pic) {
-            // Draw the frame to the top-left corner of the screen
-            LCD_DrawPicture(0, 0, frame_pic);
-            
-            // Free the Picture struct (not the pixel data)
-            free_image(frame_pic);
-        }
-    
-        // Move to the next frame, looping back to the start
-        frame_index++;
-        if (frame_index >= mystery_frame_count) {
-            frame_index = 0;
-        }
-    
-        // Add a small delay to control animation speed
-        sleep_ms(1); // Adjust delay as needed
+    else
+    {
+        printf("Unsuccessful attempt at connecting to state machine. Please try again.");
     }
-    #endif
 
-    for(;;);
+    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
+
+    uint32_t color1 = urgb_u32(255, 51, 153, 25);
+    uint32_t color2;
+    uint32_t color3;
+    while (1) {
+
+        #ifdef ALTERNATING
+            printf("WS2812 Test, using pin %d\n", WS2812_PIN);
+            color1 = urgb_u32(255, 51, 153, 25);
+            color2 = urgb_u32(0, 153, 204, 25);
+            color3 = urgb_u32(255, 153, 0, 25);
+            //printf("Color is red\n");
+            pixel_alternating(pio, sm, color1, color2, 10);
+            sleep_ms(5000);
+            pixel_alternating(pio, sm, color2, color3, 10);
+            gpio_put(22, 0);
+            sleep_ms(5000);
+        #endif
+
+        #ifdef FADE
+            pixel_fade(pio, sm, 255, 51, 153, 10);
+        #endif
+
+        #ifdef RING_COUNTER
+            reset_leds(pio, sm, 10);
+            ring_counter(pio, sm, color1, 10);
+        #endif
+    }
+
+    // This will free resources and unload our program
+    pio_remove_program_and_unclaim_sm(&ws2812_program, pio, sm, offset);
+
+    return 0;
 }
