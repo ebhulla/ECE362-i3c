@@ -7,7 +7,7 @@
 #include "hardware/spi.h"
 #include <stdio.h>
 #include <stdint.h>
-#include "lcd.h"
+#include "display/lcd.h"
 
 void nano_wait(int t);
 
@@ -15,9 +15,11 @@ lcd_dev_t lcddev;
 
 spi_inst_t *SPI = spi1; // Use SPI1 for the LCD
 
-#define CS_NUM  x
-#define DC_NUM x
-#define RESET_NUM x
+#define CS_NUM  13
+#define DC_NUM 8
+#define RESET_NUM 7
+#define SCK_NUM 14 //From the Raspberry Pi Pico documentation, GPIO14 is the SCK pin for SPI1
+#define MOSI_NUM 15 //From the Raspberry Pi Pico documentation, GPIO15 is the MOSI pin for SPI1
 
 #define CS_BIT  (1<<CS_NUM)
 #define RESET_BIT (1<<RESET_NUM)
@@ -29,6 +31,23 @@ spi_inst_t *SPI = spi1; // Use SPI1 for the LCD
 #define RESET_LOW  do { gpio_put(RESET_NUM, 0); } while(0)
 #define DC_HIGH do { gpio_put(DC_NUM, 1); } while(0)
 #define DC_LOW  do { gpio_put(DC_NUM, 0); } while(0)
+
+
+void init_spi_lcd(void){
+    gpio_init(CS_NUM);
+    gpio_set_dir(CS_NUM, GPIO_OUT);
+    CS_HIGH;
+    gpio_init(DC_NUM);
+    gpio_set_dir(DC_NUM, GPIO_OUT);
+    gpio_init(RESET_NUM);
+    gpio_set_dir(RESET_NUM, GPIO_OUT);
+    RESET_HIGH;
+    spi_init(SPI, 1000000); // Initialize SPI with 1 MHz clock
+    spi_set_format(SPI, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+
+    gpio_set_function(SCK_NUM,GPIO_FUNC_SPI);
+    gpio_set_function(MOSI_NUM,GPIO_FUNC_SPI);
+}
 
 // Set the CS pin low if val is non-zero.
 // Note that when CS is being set high again, wait on SPI to not be busy.
