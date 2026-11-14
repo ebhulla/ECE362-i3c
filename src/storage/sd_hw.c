@@ -47,3 +47,30 @@ void init_sdcard_io(void)
     init_spi_sdcard();
     disable_sdcard();
 }
+
+/*
+keypad: 2-9
+
+lcd skibidi
+// 25: spi1_cs (1)
+// 26: spi1_sck (4)
+// 27: spi1_tx (2)
+//28 spi1_rx (3)
+
+
+17: spi0_cs (3)
+20: any gpio (4)
+21: any gpio (5)
+19: spi0_tx (6)
+18: spi0_sck (7)
+
+ws2812: 29
+
+light sensor
+15: i2c1 scl
+16: i2c1 sda
+
+sht40
+32: i2c0 sda
+33: i2c0 scl
+*/
