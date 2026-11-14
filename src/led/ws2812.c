@@ -138,6 +138,29 @@ void ws2812_update(void) {
     if (!initialized) {
         return;
     }
+    if (any_sensor_alarm()) {
+        uint64_t now_us = time_us_64();
+        if (now_us - last_toggle_us >= FLASH_INTERVAL) {
+            blink_on != blink_on;
+            last_toggle_us = now_us;
+        }
+        else {
+            blink_on = false;
+        }
+    }
+    put_pixel(led_pio, led_sm, (pixels[i].r << 16) | (pixels[i].g << 8) | pixels[i].b);
+    // led2 temp
+    put_pixel(led_pio, led_sm, (pixels[i].r << 16) | (pixels[i].g << 8) | pixels[i].b);
+    // led3 humidity
+    put_pixel(led_pio, led_sm, (pixels[i].r << 16) | (pixels[i].g << 8) | pixels[i].b);
+    // led4 light
+    put_pixel(led_pio, led_sm, (pixels[i].r << 16) | (pixels[i].g << 8) | pixels[i].b);
+
+    while (!pio_sm_is_tx_fifo_empty(led_pio, led_sm)) {
+        tight_loop_contents();
+    }
+
+    sleep_us(100);
 
 // highkey idk how to do ts um
 }
