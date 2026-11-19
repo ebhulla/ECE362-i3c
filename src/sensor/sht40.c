@@ -1,4 +1,13 @@
 #include "sensor/sht40.h"
+#include "pins.h"
+
+#define SHT40_I2C i2c0
+#define SHT40_ADDR 0x44
+#define SHT40_CMD_MEAS_HIGH 0xFD
+
+#define SHT40_I2C_BAUD (100 * 1000) // 100 kHz
+#define SHT40_MEAS_MS 10
+
 
 
 
@@ -51,3 +60,27 @@ bool sht40_parse(const uint8_t buf[6], float *temp_c, float *rh){
     return true;
 }
 
+void sht40_init(void){
+    i2c_init(SHT40_I2C, SHT40_I2C_BAUD);
+    gpio_set_function(SHT40_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(SHT40_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(SHT40_SDA);
+    gpio_pull_up(SHT40_SCL);
+}
+
+bool sht40_read(float *temp_c,float *rh){
+    uint8_t cmd = SHT40_CMD_MEAS_HIGH;
+    uint8_t buf[6];
+
+    if(i2c_write_blocking(SHT40_I2C, SHT40_ADDR, &cmd, 1, false) != 1){
+        return false; //No ack from sensor
+    }
+
+    sleep_ms(SHT40_MEAS_MS);
+
+    if(i2c_read_blocking(SHT40_I2C, SHT40_ADDR, buf, 6, false) != 6){
+        return false; 
+    }
+
+    return sht40_parse(buf, temp_c, rh);
+}

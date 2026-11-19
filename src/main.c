@@ -1,31 +1,26 @@
 #include "pico/stdlib.h"
-#include "sensor/sht40.h"
 #include <stdio.h>
-
-
-
-//Test for CRC8 function
-void test_crc8() {
-    const uint8_t data[] = {0xBE, 0xEF};
-    uint8_t crc = sht40_crc8(data, sizeof(data));
-    printf("CRC8: 0x%02X\n", crc);
-}
-void test_parse() {
-    const uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    float temp_c;
-    float rh;
-    bool parse = sht40_parse(data, &temp_c, &rh);
-    printf("Parse: %d, Temp: %.2f, RH: %.2f\n", parse, temp_c, rh);
-}
+#include "display/lcd.h"
+#include "sensor/sht40.h"
 
 int main() {
     stdio_init_all();
-    test_crc8();
-    test_parse();
-    
+    init_spi_lcd();
+    LCD_Setup();
+    LCD_Clear(BLACK);
+    sht40_init();
 
     for (;;) {
-        printf("Hello world!\n");
+        float t, rh;
+        char line[32];
+        if (sht40_read(&t, &rh)) {
+            snprintf(line, sizeof line, "Temp: %.1f C  ", t);
+            LCD_DrawString(10, 20, WHITE, BLACK, line, 16, 0);
+            snprintf(line, sizeof line, "RH:   %.1f %%  ", rh);
+            LCD_DrawString(10, 50, WHITE, BLACK, line, 16, 0);
+        } else {
+            LCD_DrawString(10, 20, RED, BLACK, "Sensor error   ", 16, 0);
+        }
         sleep_ms(1000);
     }
 }

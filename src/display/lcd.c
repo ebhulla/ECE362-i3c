@@ -8,18 +8,15 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "display/lcd.h"
+#include "pins.h"
 
 void nano_wait(int t);
 
 lcd_dev_t lcddev;
 
-spi_inst_t *SPI = spi1; // Use SPI1 for the LCD
+spi_inst_t *SPI = spi0;
 
-#define CS_NUM  13
-#define DC_NUM 8
-#define RESET_NUM 7
-#define SCK_NUM 14 //From the Raspberry Pi Pico documentation, GPIO14 is the SCK pin for SPI1
-#define MOSI_NUM 15 //From the Raspberry Pi Pico documentation, GPIO15 is the MOSI pin for SPI1
+
 
 #define CS_BIT  (1<<CS_NUM)
 #define RESET_BIT (1<<RESET_NUM)

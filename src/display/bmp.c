@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lcd.h"
+#include "display/lcd.h"
 
 // A simple header for our raw files.
 typedef struct {
