@@ -5,12 +5,22 @@
 
 int main() {
     stdio_init_all();
+    sleep_ms(3000); 
     init_spi_lcd();
+    printf("step 1\n");
+    printf("Starting SHT40 sensor and LCD display demo...\n");
     LCD_Setup();
+    printf("step 2\n");
+    printf("LCD setup complete. Clearing screen and initializing SHT40 sensor...\n");
     LCD_Clear(BLACK);
+    printf("step 3\n");
+    printf("Screen cleared. Initializing SHT40 sensor...\n");
     sht40_init();
+    printf("step 4\n");
+    printf("SHT40 sensor initialized. Entering main loop to read temperature and humidity...\n");
 
     for (;;) {
+        printf("entering loop\n");
         float t, rh;
         char line[32];
         if (sht40_read(&t, &rh)) {
