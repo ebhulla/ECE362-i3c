@@ -2,19 +2,35 @@
 #include <stdio.h>
 #include "display/lcd.h"
 #include "sensor/sht40.h"
+#include "display/ui.h"
+
+//static const uint pins[] = {17, 18, 19, 20, 21};
+//static const char *names[] = {"CS", "SCK", "MOSI", "DC", "RESET"};
+
 
 int main() {
+
+    // stdio_init_all();
+    // sleep_ms(3000);
+
+    // for(int i = 0; i < 5; i++){
+    //     gpio_init(pins[i]);
+    //     gpio_set_dir(pins[i],true);
+    //     gpio_put(pins[i],0);
+    // }
+
+    // for(;;){
+    //     for (int i = 0; i < 5; i++){
+    //         printf("name is %s and pin is %d",names[i],pins[i]);
+    //         gpio_put(pins[i],1);
+    //         sleep_ms(3000);
+    //         gpio_put(pins[i],0);
+    //     }
+    // }
+
     stdio_init_all();
     sleep_ms(3000); 
-    init_spi_lcd();
-    printf("step 1\n");
-    printf("Starting SHT40 sensor and LCD display demo...\n");
-    LCD_Setup();
-    printf("step 2\n");
-    printf("LCD setup complete. Clearing screen and initializing SHT40 sensor...\n");
-    LCD_Clear(BLACK);
-    printf("step 3\n");
-    printf("Screen cleared. Initializing SHT40 sensor...\n");
+    ui_init();
     sht40_init();
     printf("step 4\n");
     printf("SHT40 sensor initialized. Entering main loop to read temperature and humidity...\n");
@@ -24,13 +40,17 @@ int main() {
         float t, rh;
         char line[32];
         if (sht40_read(&t, &rh)) {
-            snprintf(line, sizeof line, "Temp: %.1f C  ", t);
-            LCD_DrawString(10, 20, WHITE, BLACK, line, 16, 0);
-            snprintf(line, sizeof line, "RH:   %.1f %%  ", rh);
-            LCD_DrawString(10, 50, WHITE, BLACK, line, 16, 0);
+            printf("T=%.2f C RH = %.2f%%\n",t,rh);
+            //snprintf(line, sizeof line, "Temp: %.1f C  ", t);
+            ui_show_readings(t,rh);
+            //snprintf(line, sizeof line, "RH:   %.1f %%  ", rh);
+            
         } else {
-            LCD_DrawString(10, 20, RED, BLACK, "Sensor error   ", 16, 0);
+            printf("sht40_read failed\n");
+            ui_show_sensor_error();
         }
         sleep_ms(1000);
     }
+
+
 }
