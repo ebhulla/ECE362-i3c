@@ -7,6 +7,8 @@
 #define ROW_RH 90
 #define ROW_ALARM 200
 #define ALARM_H 30
+#define ROW_LIGHT 130
+#define ROW_STATUS 280
 
 
 void ui_init(void){
@@ -54,12 +56,29 @@ void ui_show_alarm(const char *name, sensor_status_t status){
             bg = YELLOW;
             what = "LOW WARNING";
             break;
-        default: break; // no banner for normal or error
+        case SENSOR_ERROR:
+            bg = RED;
+            what = "SENSOR ERROR";
+            break;
+        default: break;
     }
     LCD_DrawFillRectangle(0,ROW_ALARM,LCD_W - 1,ROW_ALARM + ALARM_H,bg);
     if(status != SENSOR_NORMAL){
         snprintf(line,sizeof(line),"%s: %s",name,what);
         LCD_DrawString(10,ROW_ALARM + 7,fc,bg,line,16,1); //1 is for transparent background, 0 is for solid background
     }
+
+}
+
+void ui_show_light(uint16_t light_raw){
+    char buff[32];
+    snprintf(buff,sizeof(buff),"Light: %4u",light_raw);
+    LCD_DrawString(10,ROW_LIGHT,WHITE,BLACK,buff,16,0);
+}
+
+void ui_show_status(const char *text, uint16_t color){
+    LCD_DrawFillRectangle(0,ROW_STATUS,LCD_W - 1,ROW_STATUS+16,BLACK);
+
+    LCD_DrawString(0,ROW_STATUS,WHITE,color,text,16,0);
 
 }
