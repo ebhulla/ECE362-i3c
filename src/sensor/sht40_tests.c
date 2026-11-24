@@ -25,18 +25,41 @@ void sht40_run_tests(void){
     check("parse valid returns true",ok);
     check("parse temp ~25.0", fabsf(t - 25.0f) < 0.1f);
     check("parse rh ~56.5", fabsf(rh - 56.5f) < 0.1f);
+    check("parse NULL pointer for temp",!(sht40_parse(buf,NULL,&rh)));
+    check("parse NULL pointer for humidity",!(sht40_parse(buf,&t,NULL)));
+
 
     // ---- Test 3: corrupted byte ----
-    uint8_t bad[6];
+    uint8_t bad[6]; //for flipped Temp Byte
+    uint8_t bad2[6]; //for flipped Humidity Byte
+
     memcpy(bad,buf,sizeof(buf));
+    memcpy(bad2,buf,sizeof(buf));
+
     bad[0] ^= 0x01;
-    check("parse corrupted returns false", !(sht40_parse(bad,&t,&rh)));
+    bad2[5] ^= 0x01;
+    check("parse corrupted temp bit returns false", !(sht40_parse(bad,&t,&rh)));
+    check("parse corrupted humidity bit returns false", !(sht40_parse(bad2,&t,&rh)));
 
     // ---- Test 4: RH clamp ----
     check("rh raw 0 -> 0", fabsf(sht40_raw_to_rh(0) - 0.0f) < 0.1f);       
     check("rh raw 65535 -> 100", fabsf(sht40_raw_to_rh(65535) - 100) < 0.1f); 
 
     check("temp raw 0 -> -40",fabsf(sht40_raw_to_celsius(0) -(-40)) < 0.1f);
-    check("temp raw 65535 -> 100", fabsf(sht40_raw_to_celsius(65535)-125) < 0.1f);
+    check("temp raw 65535 -> 125", fabsf(sht40_raw_to_celsius(65535)-125) < 0.1f);
+
+    // ---- Test 5: mid-range negative temperature (raw 8000 = 0x1F40) ----
+    uint8_t neg[6] = {0x1F, 0x40, 0x00, 0x80, 0x00, 0x00};
+    neg[2] = sht40_crc8(neg + 0, 2);
+    neg[5] = sht40_crc8(neg + 3, 2);
+
+    float t_neg = 0.0f, rh_neg = 0.0f;
+    bool ok_neg = sht40_parse(neg, &t_neg, &rh_neg);
+    check("parse negative-temp buffer returns true", ok_neg);
+    check("parse temp ~ -23.64", fabsf(t_neg - (-23.64f)) < 0.1f);
+    check("negative temp is negative", t_neg < 0.0f);
+
+
+    
 }
 
