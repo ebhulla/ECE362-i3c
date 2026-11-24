@@ -29,14 +29,14 @@ void sht40_run_tests(void){
     // ---- Test 3: corrupted byte ----
     uint8_t bad[6];
     memcpy(bad,buf,sizeof(buf));
-    bad[0] ^= bad[0];
+    bad[0] ^= 0x01;
     check("parse corrupted returns false", !(sht40_parse(bad,&t,&rh)));
 
     // ---- Test 4: RH clamp ----
-    check("rh raw 0 -> 0", fabsf(sht40_raw_to_rh(0)));       
-    check("rh raw 65535 -> 100", fabsf(sht40_raw_to_rh(65535))); 
+    check("rh raw 0 -> 0", fabsf(sht40_raw_to_rh(0) - 0.0f) < 0.1f);       
+    check("rh raw 65535 -> 100", fabsf(sht40_raw_to_rh(65535) - 100) < 0.1f); 
 
-    check("temp raw -39 -> 0",fabsf(sht40_raw_to_celsius(0)));
-    check("rh raw 125 -> 100", fabsf(sht40_raw_to_rh(65535)));
+    check("temp raw 0 -> -40",fabsf(sht40_raw_to_celsius(0) -(-40)) < 0.1f);
+    check("temp raw 65535 -> 100", fabsf(sht40_raw_to_celsius(65535)-125) < 0.1f);
 }
 

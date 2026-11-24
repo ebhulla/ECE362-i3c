@@ -1,4 +1,5 @@
 #include "sensor/sht40.h"
+#include <string.h>
 #include "pins.h"
 
 #define SHT40_I2C i2c0
@@ -68,19 +69,24 @@ void sht40_init(void){
     gpio_pull_up(SHT40_SCL);
 }
 
-bool sht40_read(float *temp_c,float *rh){
+sht40_status_t sht40_read(float *temp_c,float *rh){
     uint8_t cmd = SHT40_CMD_MEAS_HIGH;
     uint8_t buf[6];
 
-    if(i2c_write_blocking(SHT40_I2C, SHT40_ADDR, &cmd, 1, false) != 1){
-        return false; //No ack from sensor
+    if(i2c_write_timeout_us(SHT40_I2C,SHT40_ADDR,&cmd,1,false,10000)!= 1){
+        return SHT40_ERR_NO_ACK;
     }
 
     sleep_ms(SHT40_MEAS_MS);
 
-    if(i2c_read_blocking(SHT40_I2C, SHT40_ADDR, buf, 6, false) != 6){
-        return false; 
+    if(i2c_read_timeout_us(SHT40_I2C, SHT40_ADDR, buf, 6, false,10000) != 6){
+        return SHT40_ERR_READ; 
     }
 
-    return sht40_parse(buf, temp_c, rh);
+    if(!(sht40_parse(buf,temp_c,rh))){
+        return SHT40_ERR_CRC;
+    }
+
+    return SHT40_OK;
 }
+

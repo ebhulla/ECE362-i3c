@@ -38,15 +38,16 @@ int main() {
     for (;;) {
         printf("entering loop\n");
         float t, rh;
-        char line[32];
-        if (sht40_read(&t, &rh)) {
+        // char line[32];
+        sht40_status_t St = sht40_read(&t,&rh);
+        if (St == SHT40_OK) {
             printf("T=%.2f C RH = %.2f%%\n",t,rh);
             //snprintf(line, sizeof line, "Temp: %.1f C  ", t);
             ui_show_readings(t,rh);
             //snprintf(line, sizeof line, "RH:   %.1f %%  ", rh);
             
         } else {
-            printf("sht40_read failed\n");
+            printf("sht40_read failed, status=%d\n", St);
             ui_show_sensor_error();
         }
         sleep_ms(1000);
