@@ -16,6 +16,8 @@ lcd_dev_t lcddev;
 
 spi_inst_t *SPI = spi0;
 
+#define LCD_SPI_BAUD (10 * 1000 * 1000)
+
 
 
 #define CS_BIT  (1<<CS_NUM)
@@ -39,7 +41,7 @@ void init_spi_lcd(void){
     gpio_init(RESET_NUM);
     gpio_set_dir(RESET_NUM, GPIO_OUT);
     RESET_HIGH;
-    spi_init(SPI, 1000000); // Initialize SPI with 1 MHz clock
+    spi_init(SPI,LCD_SPI_BAUD); // Initialize SPI with 1 MHz clock
     spi_set_format(SPI, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
     gpio_set_function(SCK_NUM,GPIO_FUNC_SPI);
@@ -62,6 +64,7 @@ static void tft_select(int val)
             // and an ISR interrupts it and calls another LCD_DrawXYZ function.
             // This is a common mistake made by students.
             // This is what catches the problem early.
+            //printf("Error: tft_select called while CS is already low.  Looping forever.\n");
         }
         CS_LOW;
     }
