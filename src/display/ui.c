@@ -16,9 +16,16 @@ void ui_init(void){
     LCD_Setup();
     LCD_Clear(BLACK);
     LCD_DrawString(10,ROW_TITLE,CYAN,BLACK,"Environment Monitor",16,0);
+
+    ui_set_page(UI_PAGE_READINGS);
 }
 
+static ui_page_t current_page = UI_PAGE_READINGS;
+
 void ui_show_readings(float temp_c,float rh){
+    
+    if (current_page != UI_PAGE_READINGS) return;
+
     char line[20];
     snprintf(line,sizeof(line),"Temp: %5.1f C   ",temp_c);
     LCD_DrawString(10,ROW_TEMP,WHITE,BLACK,line,16,0);
@@ -28,6 +35,8 @@ void ui_show_readings(float temp_c,float rh){
 
 
 void ui_show_sensor_error(void){
+    if (current_page != UI_PAGE_READINGS) return;
+
     LCD_DrawString(10,ROW_TEMP,RED,BLACK,"TEMP: ---sensor error---",16,0);
     LCD_DrawString(10,ROW_RH,RED,BLACK,"RH:   ---sensor error---",16,0);
 }
@@ -71,6 +80,8 @@ void ui_show_alarm(const char *name, sensor_status_t status){
 }
 
 void ui_show_light(uint16_t light_raw){
+    if (current_page != UI_PAGE_READINGS) return;
+
     char buff[32];
     snprintf(buff,sizeof(buff),"Light: %4u",light_raw);
     LCD_DrawString(10,ROW_LIGHT,WHITE,BLACK,buff,16,0);
@@ -81,4 +92,56 @@ void ui_show_status(const char *text, uint16_t color){
 
     LCD_DrawString(0,ROW_STATUS,WHITE,color,text,16,0);
 
+}
+
+void ui_set_page(ui_page_t page){
+    current_page = page;
+    LCD_DrawFillRectangle(0,ROW_TEMP-10,LCD_W-1,ROW_ALARM-1,BLACK);
+
+    switch(page){
+        case UI_PAGE_READINGS:
+            break;
+        case UI_PAGE_THRESHOLDS:
+            LCD_DrawString(10,ROW_TEMP-10,CYAN,BLACK,"Thresholds",16,0);
+            break;
+        case UI_PAGE_STATUS:
+            LCD_DrawString(10,ROW_TEMP-10,CYAN,BLACK,"System Status",16,0);
+            break;
+        default:
+            break;
+    }
+}
+
+void ui_show_thresholds(const ui_thresholds_t *th,int selected){
+    if(current_page != UI_PAGE_THRESHOLDS || th == NULL) return;
+
+    char line[32];
+    for(int i = 0; i < 6; i++){
+        switch(i){
+            case 0: 
+                snprintf(line, sizeof(line), "Temp low:  %6.1f", th->temp_low);   
+                break;
+            case 1: 
+                snprintf(line, sizeof(line), "Temp high: %6.1f", th->temp_high);  
+                break;
+            case 2: 
+                snprintf(line, sizeof(line), "RH low:    %6.1f", th->rh_low);     
+                break;
+            case 3: 
+                snprintf(line, sizeof(line), "RH high:   %6.1f", th->rh_high);    
+                break;
+            case 4: 
+                snprintf(line, sizeof(line), "Light low: %6u", (unsigned)th->light_low);  
+                break;
+            case 5: 
+                snprintf(line, sizeof(line), "Light high:%6u", (unsigned)th->light_high); 
+                break;
+            default: 
+                line[0] = '\0'; 
+                break; 
+        }
+        uint16_t fg = (i == selected) ? BLACK : WHITE;
+        uint16_t bg = (i == selected) ? WHITE : BLACK;
+        LCD_DrawString(10, 70 + i * 20, fg, bg, line, 16, 0);
+    }
 }
