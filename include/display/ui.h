@@ -6,12 +6,15 @@
 
 typedef enum { 
     
-    UI_PAGE_READINGS, 
-    UI_PAGE_THRESHOLDS, 
-    UI_PAGE_STATUS 
+    UI_PAGE_READINGS,  //Temperature, Humdity and light
+    UI_PAGE_THRESHOLDS, //Six alarm limits
+    UI_PAGE_STATUS //System Status heading
 
 } ui_page_t;
 
+ /*Limits shown on the thresholds page.
+ Temperature, Humidity in physical units. Light in raw ADC counts.
+ */
 typedef struct {
     float temp_low,temp_high;
     float rh_low,rh_high;
